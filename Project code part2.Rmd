@@ -1,0 +1,223 @@
+---
+title: "project 1"
+output:
+  pdf_document: default
+  html_document: default
+date: "2022-11-16"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+
+
+```{r }
+
+n <- 100
+R <- 10000
+I <- 30
+alpha <- 0.05
+q <- 0.1
+
+set.seed(1)
+N <- c(50, 100, 200, 300, 500, 700, 1000)
+FWER_Bon <- c()
+TRR_Bon <- c()
+FWER_Holm <- c()
+TRR_Holm <- c()
+FDR_BH <- c()
+FWER_no <- c()
+
+for (p in N) 
+{mu <- c(rep(0.5, I), rep(0, p-I))
+H0False <- c(rep(1,I), rep(0, p-I))
+
+
+X <- matrix(rnorm(p*R, 0 , 1/sqrt(n)), p, R) + mu
+pValue <- 2*(1-pnorm(abs(X), 0,  1/sqrt(n)))
+
+
+#no method
+Test <- (pValue <= alpha)
+FR <- colSums(Test[(I+1):p,])
+FWE <- colSums(Test[(I+1):p,]) >= 1
+FWER <- mean(FWE)
+FWER_no <- c(FWER_no, FWER)
+
+
+#Bonferroni
+TestBon <- (pValue <= alpha/p)
+FRBon <- colSums(TestBon[(I+1):p,])
+FWEBon <- colSums(TestBon[(I+1):p,]) >= 1
+FWERBon <- mean(FWEBon)
+TRBon <- colSums(TestBon[1:I,])
+TRRBon <- mean(TRBon)
+
+FWER_Bon <- c(FWER_Bon, FWERBon)
+TRR_Bon <- c(TRR_Bon, TRRBon)
+
+pValue_ordered <- apply(pValue, 2, sort)
+pValue_order <- apply(pValue, 2, order)
+
+
+
+#Holm's
+m <-  rep(0, p)
+for (i in 1:p) m[i] <- alpha/(p-i+1)
+TestHolm <- (pValue_ordered <= m)
+for (i in 1:R) {for (j in 1:p) if (TestHolm[j, i] == F) {TestHolm[j,] == F}}
+
+FRHolm <- rep(0, R)
+for (i in 1:R)
+  FRHolm[i] <- sum(TestHolm[which(pValue_order[,i] > I),i])
+FWEHolm<- FRHolm >= 1
+FWERHolm <- mean(FWEHolm)
+
+TRHolm <- rep(0, R)
+for (i in 1:R)
+  TRHolm[i] <- sum(TestHolm[which(pValue_order[,i] <= I),i])
+TRRHolm <- mean(TRHolm)
+
+FWER_Holm <- c(FWER_Holm, FWERHolm)
+TRR_Holm <- c(TRR_Holm, TRRHolm)
+
+#B-H
+c <- rep(0, p)
+for (i in 1:p) c[i] <- i*q/p
+TestBH <- (pValue_ordered <= c)
+for (i in 1:R) {for (j in 1:p) if (TestBH[j, i] == F) {TestBH[j,] == F}}
+
+TotalR_BH <- colSums(TestBH)
+FRBH <- rep(0, R)
+for (i in 1:R)
+  FRBH[i] <- sum(TestBH[which(pValue_order[,i] > I),i])
+FDR <- mean(FRBH/TotalR_BH)
+
+TRBH <- rep(0, R)
+for (i in 1:R)
+  TRBH[i] <- sum(TestBH[which(pValue_order[,i] <= I),i])
+TRRBH <- mean(TRBH)
+FDR_BH <- c(FDR_BH, FDR)
+}
+
+```
+
+
+#FWER vs Number of hypothesis for without method
+```{r}
+plot(N, FWER_no, col = "blue",ylim = c(0, 1.05),ylab = "FWER", xlab = "Number of hypothesis", pch = 4) 
+abline(h = 1, lty = 2)
+
+```
+
+#one time experiment result
+```{r}
+Index = 1:1000
+p = 1000
+plot(pValue_ordered[,987], ylab = "p values", xlim = c(1,40), ylim = c(0,3e-3), pch = 4)
+abline(h = alpha/p, col = ("red"))
+lines(Index, alpha/(p-Index+1), col = "blue")
+legend(x = "topright",          
+       legend = c("Bonferroni", "Holm"),  
+       lty = 1,          
+       col = c("red", "blue"),           
+       lwd = 2)
+#TRHolm[987]
+#TRBon[987]
+```
+
+```{r zoom-in}
+Index = 1:1000
+p = 1000
+plot(pValue_ordered[,987], ylab = "p values",  xlim = c(20,35), ylim = c(2e-5, 6e-5), pch = 4)
+abline(h = alpha/p, col = ("red"))
+lines(Index, alpha/(p-Index+1), col = "blue")
+legend(x = "topright",          
+       legend = c("Bonferroni", "Holm"),  
+       lty = 1,          
+       col = c("red", "blue"),           
+       lwd = 2)
+
+```
+
+```{r}
+p = 1000
+plot(pValue_ordered[,987], ylab = "p values", xlim = c(1,60), ylim = c(0,0.02), pch = 4)
+lines(Index, Index*0.05/p, col = ("pink"))
+lines(Index, Index*0.1/p, col = ("black"))
+abline(h = alpha/p, col = ("red"))
+lines(Index, alpha/(p-Index+1), col = "blue")
+legend(x = "topleft",          
+       legend = c("Bonferroni", "Holm", "BH with q=0.05", "BH with q=0.1"),  
+       lty = 1,          
+       col = c("red", "blue", "pink", "black"),           
+       lwd = 2)
+title()
+
+```
+
+```{r}
+p = 1000
+plot(pValue_ordered[,987], ylab = "p values", xlim = c(25,40), ylim = c(0,0.007), pch = 4)
+lines(Index, Index*0.05/p, col = ("pink"))
+lines(Index, Index*0.1/p, col = ("black"))
+abline(h = alpha/p, col = ("red"))
+lines(Index, alpha/(p-Index+1), col = "blue")
+legend(x = "topleft",          
+       legend = c("Bonferroni", "Holm", "BH with q=0.05", "BH with q=0.1"),  
+       lty = 1,          
+       col = c("red", "blue", "pink", "black"),           
+       lwd = 2)
+title()
+
+```
+
+```{r real data}
+library(readr)
+library(dplyr)
+alpha <- 0.05
+cancer <- read_csv("Colorectal_GSE44861.csv")
+table(cancer$type)
+normal <- cancer %>% filter(type == "normal")
+normal <- normal[-c(1,2)]
+tumoral <- cancer %>% filter(type == "tumoral")
+tumoral <- tumoral[-c(1,2)]
+N = 22277
+x <- data.matrix(normal)
+y <- data.matrix(tumoral)
+p <- rep(0, 22277)
+
+for (i in 1:22277)
+{p[i] <- t.test(x[,i], y[,i], var.equal = TRUE)$p.}
+
+
+Test_Bon <- (p <= alpha/N)
+sum(Test_Bon) 
+
+p_ordered <- sort(p, decreasing = FALSE)
+index <- 1:22277 
+Test_Holm <- (p_ordered <= alpha/(N-index+1))
+min(which(Test_Holm == F)) 
+
+q = 0.1
+Test_BH <- (p_ordered <= q*index/N) 
+min(which(Test_BH == F)) 
+
+
+```
+
+
+```{r}
+plot(p_ordered, ylab = "p values", xlim = c(0,10000), ylim = c(0,0.1), type ="l")
+lines(index, index*0.1/N, col = ("pink"))
+abline(h = alpha/N, col = ("red"))
+lines(index, alpha/(N-index+1), col = "blue")
+legend(x = "topleft",          
+       legend = c("Bonferroni", "Holm", "BH", "p values"),  
+       lty = 1,          
+       col = c("red", "blue", "pink", "black"),           
+       lwd = 2)
+
+```
