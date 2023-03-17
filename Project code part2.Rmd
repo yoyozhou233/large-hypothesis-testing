@@ -221,3 +221,16 @@ legend(x = "topleft",
        lwd = 2)
 
 ```
+
+```{r}
+plot(p_ordered, ylab = "p values", xlim = c(1240,1280), ylim = c(5e-7,4e-6), pch = 4)
+lines(index, index*0.1/N, col = ("pink"))
+abline(h = alpha/N, col = ("red"))
+lines(index, alpha/(N-index+1), col = "blue")
+legend(x = "topleft",          
+       legend = c("Bonferroni", "Holm"),  
+       lty = 1,          
+       col = c("red", "blue"),           
+       lwd = 2)
+
+```
